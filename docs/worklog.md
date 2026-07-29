@@ -71,3 +71,19 @@
   - `next-env.d.ts`는 `.gitignore`에 이미 있고(Next 표준) `npm run dev`/`build` 실행 시 자동 생성됨 — 리포에 커밋하지 않음.
   - Prisma 모델(architecture.md §1)은 다음 기능 커밋에서 추가 예정. 지금은 datasource/generator만 존재.
   - push는 사용자 승인 대기 중.
+
+## [2026-07-29 13:35] Prisma 모델 정의 + 첫 마이그레이션
+- 변경 파일: prisma/schema.prisma, prisma/migrations/20260729053325_init/migration.sql(신규), prisma/migrations/migration_lock.toml(신규)
+- 브랜치: feature/prisma-schema (chore/scaffold 기준, 아직 push 안 함)
+- 작업 내용: docs/architecture.md §1.5에 이미 확정된 스키마(Book / RoutineBlock / Assignment, enum 5종)를 그대로 옮기고 `npx prisma migrate dev --name init` 실행. 설계 문서와 1:1 대응이라 별도 설계 판단 없음.
+- 검증 결과:
+  - `npx prisma validate` — "The schema at prisma/schema.prisma is valid"
+  - `npx prisma migrate dev --name init` — "Your database is now in sync with your schema." SQLite `prisma/dev.db` 생성, `prisma/migrations/20260729053325_init/migration.sql` 생성. 생성된 SQL의 FK·인덱스·유니크 제약을 육안 대조 — architecture.md §1.5와 일치(Assignment_date_idx, Assignment_status_date_idx, Book_title_language_key 등)
+  - `npm run lint` — 출력 없음(무경고)
+  - `npm run typecheck` — 출력 없음(에러 0)
+  - `npm run test` — `tests/smoke.test.ts (1 test)` 통과
+  - `npm run build` — "Compiled successfully in 3.8s", 4개 라우트 정적 생성 성공
+- 남은 이슈:
+  - `prisma/dev.db`는 `.gitignore`(prisma/dev.db*)로 커밋 대상에서 제외됨 — 의도된 동작(런타임 데이터, decisions.md 백업 결정 참조)
+  - 이번 커밋은 스키마·마이그레이션만 포함. §5의 API 라우트(zod 검증 포함)는 다음 기능 단위로 별도 커밋.
+  - push는 사용자 승인 대기 중.
