@@ -146,3 +146,21 @@
   - `/api/routine-blocks`(GET/POST/PATCH/DELETE)는 아직 없음 — 다음 기능 단위
   - `PATCH`/`DELETE /api/assignments/:id`, `PATCH /:id/status`, `/api/summary/remaining`, `/api/days/:date`도 architecture.md §5에 명시된 대로 이후 별도 구현
   - push는 사용자 승인 대기 중.
+
+## [2026-07-29 18:12] /api/routine-blocks 라우트 구현 (GET+POST, PATCH+DELETE)
+- 변경 파일: lib/routine-blocks/schema.ts(신규), app/api/routine-blocks/route.ts(신규), app/api/routine-blocks/[id]/route.ts(신규), tests/routine-blocks-schema.test.ts(신규), e2e/routine-blocks-api.spec.ts(신규), docs/decisions.md(4건 추가)
+- 브랜치: feature/api-routine-blocks (origin/main 최신 기준, 아직 push 안 함)
+- 작업 내용: architecture.md §5의 `/api/routine-blocks`(GET 목록·POST 등록), `/api/routine-blocks/:id`(PATCH 수정·DELETE 삭제) 구현
+  - `lib/routine-blocks/schema.ts` — `createRoutineBlockSchema`(startMinute/endMinute/label 필수, category/sortOrder/isActive 선택, `startMinute < endMinute` refine), `updateRoutineBlockSchema`(전부 선택, 빈 객체 거부, 두 필드가 함께 있을 때만 순서 재검증)
+  - `app/api/routine-blocks/route.ts` — GET은 `sortOrder` → `startMinute` 순 전체 목록(필터 없음, 근거는 decisions.md)
+  - `app/api/routine-blocks/[id]/route.ts` — PATCH는 존재하지 않는 id(P2025) 404, DELETE는 성공 시 204, 존재하지 않으면 404. 연결된 Assignment.routineBlockId는 마이그레이션의 `ON DELETE SET NULL`이 자동 처리
+- 검증 결과 (모두 실제 실행, 출력 확인됨):
+  - `npm run lint` — 출력 없음(무경고)
+  - `npx tsc --noEmit` — 출력 없음(에러 0)
+  - `npm run test`(vitest) — 신규 `tests/routine-blocks-schema.test.ts`(11) 포함 총 39개 전부 통과. 정상 케이스와 규칙 위반 케이스(label 빈 문자열, startMinute≥endMinute, 범위(0~1439) 벗어남, category 잘못된 값, 빈 PATCH 객체, isActive 타입 오류) 모두 포함
+  - `npm run build` — 성공, `/api/routine-blocks`와 `/api/routine-blocks/[id]`가 Dynamic(ƒ)으로 정상 등록됨
+  - `npx playwright test`(e2e, 실제 dev 서버+SQLite) — routine-blocks 6개 + 기존 books 5개 + assignments 4개 + smoke 1개, 총 16개 전부 통과: 등록→목록 반영(기본값 category=STUDY/isActive=true 확인), 순서 역전 400, 부분 수정, 존재하지 않는 id PATCH 404, 삭제 후 목록에서 사라짐, 존재하지 않는 id DELETE 404
+- 남은 이슈:
+  - `updateRoutineBlockSchema`는 startMinute·endMinute 중 한쪽만 부분 수정할 때 기존 저장값과의 순서를 검증하지 않음(decisions.md에 근거 기록) — 편도 수정으로 역전 구간이 저장될 수 있음
+  - `PATCH`/`DELETE /api/assignments/:id`, `PATCH /:id/status`, `/api/summary/remaining`, `/api/days/:date`는 architecture.md §5에 명시된 대로 다음 기능 단위로 별도 구현
+  - push는 사용자 승인 대기 중.
