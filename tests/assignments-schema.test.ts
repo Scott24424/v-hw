@@ -1,6 +1,12 @@
+import { AssignmentStatus } from "@prisma/client";
 import { describe, expect, it } from "vitest";
 
-import { createAssignmentSchema } from "@/lib/assignments/schema";
+import {
+  createAssignmentSchema,
+  updateAssignmentSchema,
+  updateAssignmentStatusSchema,
+} from "@/lib/assignments/schema";
+import { isAllowedStatusTransition } from "@/lib/assignments/status";
 
 describe("createAssignmentSchema", () => {
   it("정상 케이스: READING 유형은 bookId/progressUnit/progressEnd와 함께 통과한다", () => {
@@ -110,5 +116,103 @@ describe("createAssignmentSchema", () => {
       title: "",
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("updateAssignmentSchema", () => {
+  it("정상 케이스: 필드 하나만 수정해도 통과한다", () => {
+    const result = updateAssignmentSchema.safeParse({ title: "새 제목" });
+    expect(result.success).toBe(true);
+  });
+
+  it("정상 케이스: note를 null로 넘기면 값을 지우는 것으로 허용한다", () => {
+    const result = updateAssignmentSchema.safeParse({ note: null });
+    expect(result.success).toBe(true);
+  });
+
+  it("정상 케이스: routineBlockId를 null로 넘기면 연결을 해제하는 것으로 허용한다", () => {
+    const result = updateAssignmentSchema.safeParse({ routineBlockId: null });
+    expect(result.success).toBe(true);
+  });
+
+  it("정상 케이스: progressStart/progressEnd를 함께 수정하면 순서를 검증한다", () => {
+    const result = updateAssignmentSchema.safeParse({ progressStart: 5, progressEnd: 10 });
+    expect(result.success).toBe(true);
+  });
+
+  it("규칙 위반: 빈 객체는 거부한다(수정할 필드가 없음)", () => {
+    const result = updateAssignmentSchema.safeParse({});
+    expect(result.success).toBe(false);
+  });
+
+  it("규칙 위반: progressStart가 progressEnd보다 크면 거부한다", () => {
+    const result = updateAssignmentSchema.safeParse({ progressStart: 20, progressEnd: 10 });
+    expect(result.success).toBe(false);
+  });
+
+  it("규칙 위반: 날짜 형식이 어긋나면 거부한다", () => {
+    const result = updateAssignmentSchema.safeParse({ date: "2026/08/01" });
+    expect(result.success).toBe(false);
+  });
+
+  it("규칙 위반: bookId를 null로 넘기면 거부한다(READING 불변식 보호)", () => {
+    const result = updateAssignmentSchema.safeParse({ bookId: null });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("updateAssignmentStatusSchema", () => {
+  it("정상 케이스: status만 있으면 통과한다", () => {
+    const result = updateAssignmentStatusSchema.safeParse({ status: "DONE" });
+    expect(result.success).toBe(true);
+  });
+
+  it("규칙 위반: status가 아닌 필드가 섞이면 거부한다(.strict())", () => {
+    const result = updateAssignmentStatusSchema.safeParse({ status: "DONE", title: "몰래 수정" });
+    expect(result.success).toBe(false);
+  });
+
+  it("규칙 위반: status가 허용된 enum 값이 아니면 거부한다", () => {
+    const result = updateAssignmentStatusSchema.safeParse({ status: "CANCELLED" });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("isAllowedStatusTransition", () => {
+  it("정상 케이스: architecture.md §3.1의 모든 허용 전이를 통과시킨다", () => {
+    const { PLANNED, IN_PROGRESS, DONE, SKIPPED } = AssignmentStatus;
+    const allowed: [AssignmentStatus, AssignmentStatus][] = [
+      [PLANNED, IN_PROGRESS],
+      [PLANNED, DONE],
+      [PLANNED, SKIPPED],
+      [IN_PROGRESS, DONE],
+      [IN_PROGRESS, SKIPPED],
+      [IN_PROGRESS, PLANNED],
+      [DONE, PLANNED],
+      [DONE, SKIPPED],
+      [SKIPPED, PLANNED],
+    ];
+    for (const [from, to] of allowed) {
+      expect(isAllowedStatusTransition(from, to)).toBe(true);
+    }
+  });
+
+  it("규칙 위반: 표에 없는 전이는 거부한다", () => {
+    expect(isAllowedStatusTransition(AssignmentStatus.SKIPPED, AssignmentStatus.DONE)).toBe(
+      false,
+    );
+    expect(
+      isAllowedStatusTransition(AssignmentStatus.SKIPPED, AssignmentStatus.IN_PROGRESS),
+    ).toBe(false);
+    expect(isAllowedStatusTransition(AssignmentStatus.DONE, AssignmentStatus.IN_PROGRESS)).toBe(
+      false,
+    );
+  });
+
+  it("규칙 위반: 동일 상태로의 전이는 거부한다", () => {
+    expect(isAllowedStatusTransition(AssignmentStatus.PLANNED, AssignmentStatus.PLANNED)).toBe(
+      false,
+    );
+    expect(isAllowedStatusTransition(AssignmentStatus.DONE, AssignmentStatus.DONE)).toBe(false);
   });
 });
