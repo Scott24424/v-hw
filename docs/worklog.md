@@ -87,3 +87,24 @@
   - `prisma/dev.db`는 `.gitignore`(prisma/dev.db*)로 커밋 대상에서 제외됨 — 의도된 동작(런타임 데이터, decisions.md 백업 결정 참조)
   - 이번 커밋은 스키마·마이그레이션만 포함. §5의 API 라우트(zod 검증 포함)는 다음 기능 단위로 별도 커밋.
   - push는 사용자 승인 대기 중.
+
+## [2026-07-29 15:53] PR #1~#6 머지 및 사고 복구, main 재검증
+- 브랜치: main (모두 머지 완료)
+- 작업 내용:
+  - `gh` CLI 설치·인증 후 스택된 4개 브랜치(chore/agent-rules, docs/architecture, chore/scaffold, feature/prisma-schema)에 대해 PR #1~#4 생성
+  - PR #1(chore/agent-rules → main) 머지 + `--delete-branch`. 이로 인해 PR #2(base=chore/agent-rules)가 GitHub에 의해 **자동으로 닫힘**(retarget 아님) — head 브랜치 삭제 시 그걸 base로 쓰는 다음 PR이 재조정되지 않고 closed 되며 reopen도 base 브랜치 부재로 불가능함을 확인. PR #5(docs/architecture → main)로 재생성해 대체
+  - PR #5, #3(chore/scaffold → docs/architecture), #4(feature/prisma-schema → chore/scaffold, `--delete-branch`) 순서로 머지 완료
+  - **사고**: PR #3·#4의 base가 각각 `docs/architecture`/`chore/scaffold`였다는 것은 "그 브랜치로 병합"이지 "main으로 병합"이 아니었음. 즉 실제로 main에 반영된 건 PR #1·#5뿐이었는데, 두 브랜치를 "이미 다 머지됐다"고 오판해 `git branch -d`로 로컬·원격에서 삭제함. `-d` 실행 시 "merged to origin/chore/scaffold, but not yet merged to HEAD" 경고가 떴으나 확인 없이 진행 — main 기준 미병합 상태였음을 놓침
+  - **복구**: 삭제된 브랜치의 마지막 커밋(`3a0cbce`, scaffold+Prisma 모델 전부 포함)이 로컬 git 객체로 남아있음을 `git cat-file -e`로 확인(데이터 손실 없음). `git merge-tree`로 main과의 충돌 여부 사전 확인(충돌 없음) 후 `chore/land-scaffold-and-prisma` 브랜치를 그 커밋에서 생성, PR #6(base=main)으로 재제출해 정상 머지
+- 검증 결과 (main 병합 완료 후 실제 재실행):
+  - `git pull origin main` — fast-forward, 26개 파일 반영 확인. (직전 `npm install` 잔여물인 빈 package-lock.json 스텁과 `prisma/dev.db`가 untracked로 남아 pull을 막아 삭제 후 재시도 — 둘 다 재생성 가능한 로컬 산출물이라 데이터 아님)
+  - `npm install` — exit 0
+  - `npx prisma migrate deploy` — "All migrations have been successfully applied."
+  - `npm run lint` — 출력 없음(무경고)
+  - `npm run typecheck` — 출력 없음(에러 0)
+  - `npm run test` — `tests/smoke.test.ts (1 test)` 통과
+  - `npm run build` — "Compiled successfully in 2.4s", 4개 라우트 정적 생성 성공
+  - `npm run dev` 실제 구동(`✓ Ready in 123ms`) 후 `npx playwright test`로 실제 브라우저 접속 확인 — `1 passed`. 확인 후 dev 서버 종료
+- 남은 이슈:
+  - PR #2는 CLOSED 상태로 GitHub에 남음(#5로 대체, 정리 목적의 삭제는 하지 않음 — 이력 보존)
+  - 앞으로 스택 PR을 만들 때는 각 PR의 base를 직전 브랜치가 아니라 **가능하면 main으로 직접** 잡거나, base가 다른 PR의 head인 경우 그 사실을 명확히 인지하고 "머지 완료 = main 반영 완료"로 착각하지 않아야 함. `git branch -d` 경고 문구는 무시하지 않고 반드시 `git branch --merged main`으로 재확인 후 삭제할 것.
