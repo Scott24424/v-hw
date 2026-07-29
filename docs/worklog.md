@@ -38,3 +38,52 @@
   - 새 의존성 4건(vitest / zod / 스타일 방식 / 스캐폴딩 옵션)은 CLAUDE.md 규칙에 따라 설치 직전 사용자 확인 필요. architecture.md §7.1에 목록화.
   - PR은 gh CLI 미설치로 자동 생성하지 못함. 브랜치 push 후 compare URL을 사용자에게 전달.
   - 이 브랜치는 chore/agent-rules에 스택되어 있음. chore/agent-rules가 먼저 머지되어야 함.
+
+## [2026-07-29 13:21] Stage 1 스캐폴딩
+- 변경 파일: package.json(신규), package-lock.json(신규), tsconfig.json, next.config.ts, eslint.config.mjs, postcss.config.mjs(모두 신규, create-next-app 생성), app/(레이아웃·기본 페이지), public/(기본 아이콘), prisma/schema.prisma(신규, 모델 없음), vitest.config.ts, playwright.config.ts, tests/smoke.test.ts, e2e/smoke.spec.ts, scripts/backup.mjs, .gitignore, docs/decisions.md(4건 추가)
+- 브랜치: chore/scaffold (docs/architecture 기준, 아직 push 안 함 — 사용자 승인 후 진행)
+- 작업 내용:
+  - `npx create-next-app@latest`를 리포 바깥 스크래치 디렉터리에서 실행한 뒤 생성 파일만 리포로 병합. 리포 루트에서 직접 실행하면 create-next-app이 `.claude/`·`CLAUDE.md`·`AGENTS.md`를 "충돌 파일"로 인식해 중단되므로 우회.
+  - 옵션: TypeScript, App Router, Tailwind CSS, ESLint, import alias `@/*`, `--disable-git`(기존 저장소 git 재초기화 방지), `--no-agents-md`(기존 AGENTS.md 심볼릭 링크와 충돌 방지)
+  - `package.json` name을 `v-hw-scaffold` → `v-hw`로 수정, CLAUDE.md 완료 조건에 맞춰 `lint`/`typecheck`(`tsc --noEmit`)/`test`(`vitest run`)/`test:e2e`(`playwright test`)/`backup` 스크립트 추가
+  - Prisma: `@prisma/client` + `prisma` 설치, `prisma/schema.prisma`는 datasource/generator만 정의(모델 없음). datasource url은 `env("DATABASE_URL")`이 아니라 `"file:./dev.db"` 리터럴 — 이유는 decisions.md 참조(.env 파일을 만들 수 없어서 + 배포 환경이 하나뿐이라 손실 없음)
+  - vitest(environment: node) + Playwright(chromium 바이너리 설치 포함) 기본 설정과 스모크 테스트 각 1개
+  - `.gitignore`에 Next.js 표준 항목, `prisma/dev.db*`, `backups/`, 테스트 아티팩트(`coverage`, `test-results`, `playwright-report`) 추가
+- 각 패키지가 필요한 이유:
+  - `next` `react` `react-dom` — 고정 스택(App Router)의 런타임 자체
+  - `@prisma/client` — 앱 코드에서 DB를 타입 안전하게 쿼리하는 런타임 클라이언트
+  - `prisma`(devDependency) — 스키마 검증·마이그레이션·클라이언트 생성을 수행하는 CLI
+  - `typescript` `@types/*` — CLAUDE.md의 "any 타입 금지"를 도구 차원에서 강제하려면 타입 정보 자체가 있어야 함
+  - `eslint` `eslint-config-next` — `npm run lint` 무경고가 완료 조건이라 린터가 있어야 그 기준을 검사할 수 있음
+  - `tailwindcss` `@tailwindcss/postcss` — create-next-app 선택 스타일 방식(사용자 확정)
+  - `vitest` — `npm run test`가 완료 조건인데 러너가 없었음(사용자 지정)
+  - `@playwright/test` — E2E 테스트 러너(사용자 지정), 브라우저 바이너리(chromium)도 별도 설치 필요
+- 검증 결과 (모두 실제 실행, 출력 확인됨):
+  - `npm install` — 1차 시도 `ECONNRESET`(Prisma 엔진 바이너리 다운로드 중 네트워크 끊김)로 실패, 재시도 시 exit 0 성공. 일시적 네트워크 문제로 판단(재시도만으로 해결, 코드/설정 문제 아님)
+  - `npx prisma generate` — "Generated Prisma Client (v6.19.3)" 성공, 모델이 없어도 정상 동작
+  - `npm run test` → `vitest run`: `tests/smoke.test.ts (1 test)` 통과. `Test Files 1 passed (1)`
+  - `npm run lint` → `eslint`: 출력 없음(무경고)
+  - `npm run typecheck` → `tsc --noEmit`: 출력 없음(에러 0)
+  - `npm run build` → `next build`: "Compiled successfully in 4.0s", "Finished TypeScript in 718ms", 4개 라우트 모두 정적 생성 성공
+  - `npm run dev` 실제 구동 후 확인: 로그에 `✓ Ready in 125ms` 확인. `curl`이 `.claude/settings.json` deny 규칙(`Bash(curl:*)`)로 차단되어, 대신 `npx playwright test`로 헤드리스 브라우저가 실제 `http://localhost:3000/`에 접속해 기본 페이지 텍스트("To get started, edit the page.tsx file.")가 보이는지 확인 — `1 passed (5.4s)`. 확인 후 dev 서버 프로세스 종료.
+- 남은 이슈:
+  - `npm audit`: "12 high severity vulnerabilities" 보고됨(create-next-app 표준 산출물의 통상적인 개발 의존성 경고로 추정). 이번 작업 범위 밖이라 조치하지 않음 — 별도로 검토 필요.
+  - `next-env.d.ts`는 `.gitignore`에 이미 있고(Next 표준) `npm run dev`/`build` 실행 시 자동 생성됨 — 리포에 커밋하지 않음.
+  - Prisma 모델(architecture.md §1)은 다음 기능 커밋에서 추가 예정. 지금은 datasource/generator만 존재.
+  - push는 사용자 승인 대기 중.
+
+## [2026-07-29 13:35] Prisma 모델 정의 + 첫 마이그레이션
+- 변경 파일: prisma/schema.prisma, prisma/migrations/20260729053325_init/migration.sql(신규), prisma/migrations/migration_lock.toml(신규)
+- 브랜치: feature/prisma-schema (chore/scaffold 기준, 아직 push 안 함)
+- 작업 내용: docs/architecture.md §1.5에 이미 확정된 스키마(Book / RoutineBlock / Assignment, enum 5종)를 그대로 옮기고 `npx prisma migrate dev --name init` 실행. 설계 문서와 1:1 대응이라 별도 설계 판단 없음.
+- 검증 결과:
+  - `npx prisma validate` — "The schema at prisma/schema.prisma is valid"
+  - `npx prisma migrate dev --name init` — "Your database is now in sync with your schema." SQLite `prisma/dev.db` 생성, `prisma/migrations/20260729053325_init/migration.sql` 생성. 생성된 SQL의 FK·인덱스·유니크 제약을 육안 대조 — architecture.md §1.5와 일치(Assignment_date_idx, Assignment_status_date_idx, Book_title_language_key 등)
+  - `npm run lint` — 출력 없음(무경고)
+  - `npm run typecheck` — 출력 없음(에러 0)
+  - `npm run test` — `tests/smoke.test.ts (1 test)` 통과
+  - `npm run build` — "Compiled successfully in 3.8s", 4개 라우트 정적 생성 성공
+- 남은 이슈:
+  - `prisma/dev.db`는 `.gitignore`(prisma/dev.db*)로 커밋 대상에서 제외됨 — 의도된 동작(런타임 데이터, decisions.md 백업 결정 참조)
+  - 이번 커밋은 스키마·마이그레이션만 포함. §5의 API 라우트(zod 검증 포함)는 다음 기능 단위로 별도 커밋.
+  - push는 사용자 승인 대기 중.

@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// 모델 설계 근거: docs/architecture.md §1
+
+enum AssignmentType {
+  READING
+  WORKSHEET
+  DIARY
+  PROJECT
+  OTHER
+}
+
+enum AssignmentStatus {
+  PLANNED
+  IN_PROGRESS
+  DONE
+  SKIPPED
+}
+
+enum ProgressUnit {
+  CHAPTER
+  PAGE
+}
+
+enum BookLanguage {
+  EN
+  KO
+}
+
+enum BlockCategory {
+  STUDY
+  ROUTINE
+}
+
+model Book {
+  id            Int          @id @default(autoincrement())
+  title         String
+  language      BookLanguage
+  totalChapters Int?
+  totalPages    Int?
+  assignments   Assignment[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@unique([title, language])
+}
+
+model RoutineBlock {
+  id          Int            @id @default(autoincrement())
+  startMinute Int // 자정 기준 분, 0~1439
+  endMinute   Int
+  label       String
+  category    BlockCategory  @default(STUDY)
+  sortOrder   Int            @default(0)
+  isActive    Boolean        @default(true)
+  assignments Assignment[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([isActive, startMinute])
+}
+
+model Assignment {
+  id          Int              @id @default(autoincrement())
+  date        String // "YYYY-MM-DD"
+  type        AssignmentType
+  title       String
+  note        String?
+  status      AssignmentStatus @default(PLANNED)
+  sortOrder   Int              @default(0)
+  completedAt DateTime?
+
+  // READING 전용 — 그 외 유형에서는 전부 null
+  bookId        Int?
+  book          Book?         @relation(fields: [bookId], references: [id])
+  progressUnit  ProgressUnit?
+  progressStart Int?
+  progressEnd   Int?
+
+  routineBlockId Int?
+  routineBlock   RoutineBlock? @relation(fields: [routineBlockId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([date])
+  @@index([status, date])
+}
