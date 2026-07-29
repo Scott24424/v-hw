@@ -29,8 +29,8 @@
       "Bash(git merge:*)"
     ],
     "deny": [
-      "Read(./.env)",
-      "Read(./.env.*)",
+      "Read(.env)",
+      "Read(.env.*)",
       "Bash(curl:*)",
       "Bash(wget:*)",
       "Bash(sudo:*)"
