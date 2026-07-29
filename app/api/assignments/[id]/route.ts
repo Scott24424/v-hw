@@ -12,6 +12,24 @@ function parseId(raw: string): number | null {
 
 const READING_ONLY_FIELDS = ["bookId", "progressUnit", "progressStart", "progressEnd"] as const;
 
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id: rawId } = await params;
+  const id = parseId(rawId);
+  if (id === null) {
+    return NextResponse.json({ error: "invalid assignment id" }, { status: 400 });
+  }
+
+  const assignment = await prisma.assignment.findUnique({ where: { id } });
+  if (assignment === null) {
+    return NextResponse.json({ error: "과제를 찾을 수 없습니다" }, { status: 404 });
+  }
+
+  return NextResponse.json(serializeAssignment(assignment));
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },

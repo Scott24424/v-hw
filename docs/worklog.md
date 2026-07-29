@@ -182,3 +182,19 @@
 - 남은 이슈:
   - `GET /api/assignments/:id`(단건 조회), `/api/summary/remaining`, `/api/days/:date`는 architecture.md §5에 명시된 대로 다음 기능 단위로 별도 구현
   - push는 사용자 승인 대기 중.
+
+## [2026-07-30 07:45] GET /api/assignments/:id 단건 조회 구현
+- 변경 파일: app/api/assignments/[id]/route.ts(GET 추가), e2e/assignments-detail-api.spec.ts(2건 추가), docs/decisions.md(1건 추가)
+- 브랜치: feature/api-assignment-get-by-id, **base는 main이 아니라 origin/feature/api-assignment-detail(PR #11, 아직 미머지)** — 같은 파일(`app/api/assignments/[id]/route.ts`)에 PATCH/DELETE가 이미 있어 main 기준으로 만들면 파일 자체가 충돌 확정이라 스택 브랜치로 감. PR base도 동일하게 feature/api-assignment-detail로 잡을 것.
+- 작업 내용: architecture.md §5 `GET /api/assignments/:id`(단건 조회) 구현. PR #11이 명시적으로 범위 밖으로 남긴 이슈를 해소
+  - 기존 PATCH/DELETE와 동일한 `parseId` 헬퍼 재사용, 존재하지 않으면 404, 응답은 `serializeAssignment`로 `isOverdue` 포함(§5.2 공통 규약)
+- 검증 결과 (모두 실제 실행, 출력 확인됨):
+  - `npm run lint` — 출력 없음(무경고)
+  - `npx tsc --noEmit` — 출력 없음(에러 0)
+  - `npm run test`(vitest) — 기존 53개 전부 통과(이번 변경은 스키마 추가가 없어 신규 단위 테스트 없음)
+  - `npm run build` — 성공, `/api/assignments/[id]`가 Dynamic(ƒ)으로 정상 등록됨
+  - `npx playwright test`(e2e, 실제 dev 서버+SQLite) — 총 31개 전부 통과(신규 GET 테스트 2개: 정상 조회+isOverdue 포함 확인, 존재하지 않는 id 404)
+- 남은 이슈:
+  - `/api/summary/remaining`, `/api/days/:date`는 architecture.md §5에 명시된 대로 다음 기능 단위로 별도 구현
+  - PR #11과 이 브랜치 모두 아직 미머지 — PR #11이 먼저 머지되면 이 브랜치는 rebase 필요
+  - push는 사용자 승인 대기 중.
