@@ -128,3 +128,21 @@
   - `/api/books`, `/api/routine-blocks`가 아직 없어 e2e 테스트가 Book 시드를 API가 아니라 Prisma 클라이언트로 직접 생성함 — 다음 기능(§5의 나머지 엔드포인트) 구현 시 자연히 해소됨
   - `PATCH`/`DELETE /api/assignments/:id`, `PATCH /:id/status`, `/api/summary/remaining`, `/api/days/:date`는 architecture.md §5에 명시된 대로 다음 기능 단위로 별도 구현
   - push는 사용자 승인 대기 중.
+
+## [2026-07-29 16:53] /api/books 라우트 구현 (GET+POST+PATCH)
+- 변경 파일: lib/books/schema.ts(신규), app/api/books/route.ts(신규), app/api/books/[id]/route.ts(신규), tests/books-schema.test.ts(신규), e2e/books-api.spec.ts(신규), e2e/assignments-api.spec.ts(책 시드를 POST /api/books 호출로 교체), docs/decisions.md(4건 추가)
+- 브랜치: feature/api-books (main 기준, 아직 push 안 함)
+- 작업 내용: architecture.md §5의 `/api/books`(GET 목록·POST 등록), `/api/books/:id`(PATCH 수정) 구현. 명세에 없는 DELETE/단건 GET은 추가하지 않음(범위 그대로)
+  - `lib/books/schema.ts` — `createBookSchema`(title/language 필수, totalChapters/totalPages 선택), `updateBookSchema`(전부 선택이지만 빈 객체는 refine으로 거부, null은 "값 지우기"로 허용)
+  - `app/api/books/route.ts` — POST에서 (title, language) unique 위반(Prisma P2002)을 409로 변환
+  - `app/api/books/[id]/route.ts` — Next 16 App Router의 비동기 `params`(`Promise<{ id: string }>`) 사용, 존재하지 않는 id(P2025)는 404, 중복(P2002)은 409
+  - `e2e/assignments-api.spec.ts`의 `beforeAll`을 `prisma.book.create` 직접 호출에서 `request.post("/api/books", ...)`로 교체 — 지난 작업에서 남긴 이슈 해소
+- 검증 결과 (모두 실제 실행, 출력 확인됨):
+  - `npm run build` 도중 Next의 라우트 타입 생성 단계("Running TypeScript ...")로 `app/api/books/[id]/route.ts`의 동적 라우트 핸들러 시그니처(`params: Promise<{ id: string }>`)가 Next 16 기준으로 올바른지 확인 — 에러 없이 통과, `/api/books/[id]`가 Dynamic(ƒ)으로 정상 등록됨
+  - `npm run test`(vitest) — 신규 `tests/books-schema.test.ts`(10) 포함 총 28개 전부 통과. 정상 케이스와 규칙 위반 케이스(title 없음/빈 문자열, language가 EN/KO 아님, totalChapters ≤ 0, 빈 PATCH 객체) 모두 포함
+  - `npx playwright test`(e2e, 실제 dev 서버+SQLite) — books 5개 + 기존 assignments 4개(책 시드 방식이 바뀐 채로) + smoke 1개, 총 10개 전부 통과: 등록→목록 반영, 중복 409, 필수 필드 누락 400, 부분 수정, 존재하지 않는 id 404
+  - `npm run lint` / `npm run typecheck` — 출력 없음(무경고/에러 0)
+- 남은 이슈:
+  - `/api/routine-blocks`(GET/POST/PATCH/DELETE)는 아직 없음 — 다음 기능 단위
+  - `PATCH`/`DELETE /api/assignments/:id`, `PATCH /:id/status`, `/api/summary/remaining`, `/api/days/:date`도 architecture.md §5에 명시된 대로 이후 별도 구현
+  - push는 사용자 승인 대기 중.
