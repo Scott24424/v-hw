@@ -108,3 +108,23 @@
 - 남은 이슈:
   - PR #2는 CLOSED 상태로 GitHub에 남음(#5로 대체, 정리 목적의 삭제는 하지 않음 — 이력 보존)
   - 앞으로 스택 PR을 만들 때는 각 PR의 base를 직전 브랜치가 아니라 **가능하면 main으로 직접** 잡거나, base가 다른 PR의 head인 경우 그 사실을 명확히 인지하고 "머지 완료 = main 반영 완료"로 착각하지 않아야 함. `git branch -d` 경고 문구는 무시하지 않고 반드시 `git branch --merged main`으로 재확인 후 삭제할 것.
+
+## [2026-07-29 16:25] /api/assignments 라우트 구현 (GET+POST)
+- 변경 파일: lib/prisma.ts(신규), lib/date.ts(신규), lib/assignments/schema.ts(신규), lib/assignments/serialize.ts(신규), app/api/assignments/route.ts(신규), tests/date.test.ts(신규), tests/assignments-schema.test.ts(신규), e2e/assignments-api.spec.ts(신규), vitest.config.ts(alias 추가), package.json/package-lock.json(zod 추가), docs/decisions.md(5건 추가)
+- 브랜치: feature/api-assignments (main 기준, 아직 push 안 함)
+- 작업 내용: architecture.md §5의 `/api/assignments` 엔드포인트(범위 조회 GET, 생성 POST) 구현
+  - `lib/prisma.ts` — Next.js HMR 환경에서 PrismaClient 중복 생성을 막는 표준 싱글턴 패턴
+  - `lib/date.ts` — `isValidDateString`(형식+달력 유효성), `todayKST`(서버 Asia/Seoul 기준 오늘, decisions.md #7 근거), `isOverdue`(§3.2 계산식)
+  - `lib/assignments/schema.ts` — zod `superRefine`으로 §2.2 유형별 필드 규칙(READING만 bookId/progressUnit/progressEnd 필수, 그 외 전부 null, progressStart ≤ progressEnd) 강제
+  - `app/api/assignments/route.ts` — GET은 from/to/status/type 필터 + 응답마다 `isOverdue` 파생 필드 포함(§5.2 공통 규약). POST는 READING 유형일 때 progressStart 미지정 시 같은 책의 직전 progressEnd+1로 자동 채움(§1.4), 잘못된 bookId/routineBlockId 참조는 Prisma P2003을 잡아 400으로 변환
+- 검증 결과 (모두 실제 실행, 출력 확인됨):
+  - `npm run test`(vitest) — `tests/date.test.ts`(7) + `tests/assignments-schema.test.ts`(10) + 기존 스모크(1) = 18개 전부 통과. 정상 케이스와 규칙 위반 케이스(READING인데 bookId 없음, READING 아닌데 bookId 지정, progressStart>progressEnd, 잘못된 날짜 형식, 빈 제목) 모두 포함
+  - `npx playwright test`(e2e, 실제 dev 서버+SQLite) — 5개 전부 통과: progressStart 자동 이어붙임(ch.6→ch.12 시나리오로 재현) / 잘못된 bookId 400 / 규칙 위반 페이로드 400 / 목록 조회에 isOverdue 포함
+  - 중간에 `vitest`가 `@/lib/...` import를 못 찾는 실패 발생 → 원인: `tsconfig.json`의 `paths`는 vitest(Vite)가 자동으로 읽지 않음 → `vitest.config.ts`에 `resolve.alias` 추가로 해결, 재실행해 18개 통과 확인
+  - 중간에 Playwright e2e 4개가 `Unique constraint failed on (title, language)`로 실패 → 원인 가설 1개로 확인: `beforeAll`이 병렬 워커마다 한 번씩 실행되어 같은 제목의 Book을 동시에 생성 시도 → `test.describe.configure({ mode: "serial" })`로 파일 전체를 한 워커에서 순차 실행하도록 수정, 재실행해 5개 전부 통과 확인
+  - `npm run lint` / `npm run typecheck` — 출력 없음(무경고/에러 0)
+  - `npm run build` — "Compiled successfully in 2.3s", `/api/assignments`가 Dynamic(ƒ) 라우트로 정상 등록됨
+- 남은 이슈:
+  - `/api/books`, `/api/routine-blocks`가 아직 없어 e2e 테스트가 Book 시드를 API가 아니라 Prisma 클라이언트로 직접 생성함 — 다음 기능(§5의 나머지 엔드포인트) 구현 시 자연히 해소됨
+  - `PATCH`/`DELETE /api/assignments/:id`, `PATCH /:id/status`, `/api/summary/remaining`, `/api/days/:date`는 architecture.md §5에 명시된 대로 다음 기능 단위로 별도 구현
+  - push는 사용자 승인 대기 중.
