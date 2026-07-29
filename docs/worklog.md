@@ -182,3 +182,21 @@
 - 남은 이슈:
   - `GET /api/assignments/:id`(단건 조회), `/api/summary/remaining`, `/api/days/:date`는 architecture.md §5에 명시된 대로 다음 기능 단위로 별도 구현
   - push는 사용자 승인 대기 중.
+
+## [2026-07-30 07:56] /api/summary/remaining 구현
+- 변경 파일: app/api/summary/remaining/route.ts(신규), lib/date.ts(weekRangeKST 추가, OVERDUE_STATUSES export), tests/date.test.ts(weekRangeKST 5건 추가), e2e/summary-remaining-api.spec.ts(신규), docs/decisions.md(3건 추가)
+- 브랜치: feature/api-summary-remaining (main 기준, 아직 push 안 함)
+- 작업 내용: architecture.md §5의 `GET /api/summary/remaining`(`{ overdue[], today[], thisWeek[], counts }`) 구현
+  - "이번 주" 경계가 설계 문서에 없어 사용자에게 질문 → 달력 주(월~일, KST)로 확정받음(decisions.md)
+  - `lib/date.ts`에 `weekRangeKST(date?)` 추가 — 순수 함수, KST 기준 해당 날짜가 속한 주의 월요일/일요일을 반환. 연도 경계도 검증
+  - 세 버킷은 날짜 구간만 다르고 상태 조건(`PLANNED`/`IN_PROGRESS`)은 동일 — `isOverdue`가 쓰는 `OVERDUE_STATUSES`를 그대로 export해 재사용
+  - `counts`는 각 배열 길이를 그대로 담음
+- 검증 결과 (모두 실제 실행, 출력 확인됨):
+  - `npm run lint` — 출력 없음(무경고)
+  - `npx tsc --noEmit` — 최초 시도에서 Prisma `orderBy`/`status.in`이 mutable 배열 타입을 요구해 `readonly` 배열(export한 `OVERDUE_STATUSES`, `as const` 배열)을 못 받는 에러 발생 → `REMAINING_STATUSES`로 스프레드 복사, `orderBy` 배열은 `as const`를 개별 필드에만 적용하는 방식으로 수정, 재실행해 에러 0 확인
+  - `npm run test`(vitest) — 신규 `weekRangeKST` 5개 포함 총 58개 전부 통과. 주 중간/월요일 경계/일요일 경계/연도 경계/인자 생략 케이스 모두 포함
+  - `npm run build` — 성공, `/api/summary/remaining`이 Dynamic(ƒ)으로 정상 등록됨
+  - `npx playwright test`(e2e, 실제 dev 서버+SQLite) — 총 32개 전부 통과. 신규 3개: (1) 밀린 것/오늘 버킷 배타성 + 다음 주 항목 배제 + counts 일치 (2) 이번 주 경계(오늘+1~이번 주 일요일) 포함 확인 — 오늘이 일요일이면 자동 skip(사유는 decisions.md) (3) DONE/SKIPPED 상태는 어느 버킷에도 없음
+- 남은 이슈:
+  - `GET /api/days/:date`는 architecture.md §5에 명시된 대로 다음 기능 단위로 별도 구현
+  - push는 사용자 승인 대기 중이 아니라 CLAUDE.md "작업 브랜치에는 자유롭게 push" 규칙에 따라 이어서 push+PR 진행 예정
