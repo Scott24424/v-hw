@@ -9,6 +9,7 @@ test.describe.configure({ mode: "serial" });
 const prisma = new PrismaClient();
 
 let bookId: number | undefined;
+const assignmentIds: number[] = [];
 
 test.beforeAll(async ({ request }) => {
   const response = await request.post("/api/books", {
@@ -19,9 +20,10 @@ test.beforeAll(async ({ request }) => {
 });
 
 test.afterAll(async () => {
-  await prisma.assignment.deleteMany({
-    where: { OR: [{ bookId }, { title: { contains: "e2e" } }] },
-  });
+  // 다른 spec 파일도 "e2e"가 포함된 assignment 제목을 쓰기 시작하면서
+  // (docs/decisions.md 참조) title contains "e2e" 필터가 병렬 워커에서 그 파일의
+  // 아직 사용 중인 행까지 지워버리는 문제가 있었다. 이 파일이 만든 id만 정확히 지운다.
+  await prisma.assignment.deleteMany({ where: { id: { in: assignmentIds } } });
   if (bookId !== undefined) {
     await prisma.book.delete({ where: { id: bookId } });
   }
@@ -43,6 +45,7 @@ test("READING 과제를 두 번 연속 생성하면 progressStart가 이전 prog
   });
   expect(first.ok()).toBe(true);
   const firstBody = await first.json();
+  assignmentIds.push(firstBody.id);
   expect(firstBody.progressStart).toBe(1);
   expect(firstBody.progressEnd).toBe(6);
 
@@ -58,6 +61,7 @@ test("READING 과제를 두 번 연속 생성하면 progressStart가 이전 prog
   });
   expect(second.ok()).toBe(true);
   const secondBody = await second.json();
+  assignmentIds.push(secondBody.id);
   expect(secondBody.progressStart).toBe(7);
 });
 
@@ -88,13 +92,15 @@ test("규칙 위반 페이로드는 400과 함께 검증 오류를 반환한다"
 });
 
 test("생성한 과제가 목록 조회에 isOverdue 필드와 함께 나타난다", async ({ request }) => {
-  await request.post("/api/assignments", {
+  const created = await request.post("/api/assignments", {
     data: {
       date: "2020-01-01",
       type: "DIARY",
       title: "e2e overdue diary",
     },
   });
+  const createdBody = await created.json();
+  assignmentIds.push(createdBody.id);
 
   const response = await request.get("/api/assignments?from=2020-01-01&to=2020-01-01");
   expect(response.ok()).toBe(true);

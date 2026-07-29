@@ -164,3 +164,21 @@
   - `updateRoutineBlockSchema`는 startMinute·endMinute 중 한쪽만 부분 수정할 때 기존 저장값과의 순서를 검증하지 않음(decisions.md에 근거 기록) — 편도 수정으로 역전 구간이 저장될 수 있음
   - `PATCH`/`DELETE /api/assignments/:id`, `PATCH /:id/status`, `/api/summary/remaining`, `/api/days/:date`는 architecture.md §5에 명시된 대로 다음 기능 단위로 별도 구현
   - push는 사용자 승인 대기 중.
+
+## [2026-07-29 22:12] /api/assignments/:id 라우트 구현 (PATCH+DELETE, PATCH .../status)
+- 변경 파일: lib/assignments/schema.ts(updateAssignmentSchema, updateAssignmentStatusSchema 추가), lib/assignments/status.ts(신규), app/api/assignments/[id]/route.ts(신규), app/api/assignments/[id]/status/route.ts(신규), tests/assignments-schema.test.ts(신규 케이스 추가), e2e/assignments-detail-api.spec.ts(신규), e2e/assignments-api.spec.ts(afterAll 정리 로직을 id 추적 방식으로 교체 — 버그 수정), docs/decisions.md(5건 추가)
+- 브랜치: feature/api-assignment-detail (origin/main 최신 기준, 아직 push 안 함)
+- 작업 내용: 사용자가 지정한 범위(PATCH/DELETE/status)만 구현. architecture.md §5의 `GET /api/assignments/:id`(단건 조회)는 이번 범위 밖 — 남은 이슈로 기록(근거는 decisions.md)
+  - `PATCH /api/assignments/:id` — 날짜·제목·note·진도·블록 연결·정렬 수정. `type`/`status`는 대상 아님. 기존 레코드를 `findUnique`로 먼저 조회해 §2.2 유형별 필드 규칙(READING 아니면 진도/책 필드 거부, READING이면 병합된 progressStart/progressEnd 순서 검증)을 라우트에서 검증. FK 위반(P2003)은 400, 존재하지 않는 id는 404
+  - `DELETE /api/assignments/:id` — 물리 삭제(§5.1), 성공 204, 존재하지 않으면 404
+  - `PATCH /api/assignments/:id/status` — `lib/assignments/status.ts`에 §3.1 전이 표를 그대로 코드화. 허용되지 않은 전이(동일 상태 포함)는 409, 존재하지 않는 id는 404, status 외 필드가 섞이면(.strict()) 400. DONE 진입 시 completedAt 기록, DONE 이탈 시 null로 복귀
+- 버그 발견 및 수정: 새 e2e 파일 추가 중 `npx playwright test` 전체 실행에서 간헐적 실패(400 기대인데 404) 발견 → 원인 조사 결과 `e2e/assignments-api.spec.ts`의 `afterAll`이 `title: { contains: "e2e" }`로 광범위하게 지우고 있었는데, `fullyParallel: true`라 이 신규 파일과 동시에 실행되며 아직 테스트 중인 다른 파일의 assignment까지 삭제해 발생. id 추적 방식으로 교체해 해결(재발 방지 근거는 decisions.md)
+- 검증 결과 (모두 실제 실행, 출력 확인됨):
+  - `npm run lint` — 출력 없음(무경고)
+  - `npx tsc --noEmit` — 출력 없음(에러 0)
+  - `npm run test`(vitest) — `tests/assignments-schema.test.ts`가 10→24개로 확장(update 스키마 8개, status 스키마 3개, 전이 함수 3개 추가), 총 53개 전부 통과
+  - `npm run build` — 성공, `/api/assignments/[id]`·`/api/assignments/[id]/status`가 Dynamic(ƒ)으로 정상 등록됨
+  - `npx playwright test` — assignments-detail 15개 + 기존 assignments 4개 + books 5개 + routine-blocks 6개 + smoke 1개, 총 29개 전부 통과(위 버그 수정 후 재현 없음 확인)
+- 남은 이슈:
+  - `GET /api/assignments/:id`(단건 조회), `/api/summary/remaining`, `/api/days/:date`는 architecture.md §5에 명시된 대로 다음 기능 단위로 별도 구현
+  - push는 사용자 승인 대기 중.
