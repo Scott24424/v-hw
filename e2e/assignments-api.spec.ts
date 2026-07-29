@@ -10,10 +10,11 @@ const prisma = new PrismaClient();
 
 let bookId: number | undefined;
 
-test.beforeAll(async () => {
-  const book = await prisma.book.create({
+test.beforeAll(async ({ request }) => {
+  const response = await request.post("/api/books", {
     data: { title: "__e2e_test_book__", language: "EN" },
   });
+  const book = await response.json();
   bookId = book.id;
 });
 
