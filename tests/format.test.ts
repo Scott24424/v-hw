@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   assignmentLabel,
   formatKoreanDate,
+  formatMinutesAsClock,
   formatShortDate,
   gridDayLabels,
   progressLabel,
@@ -38,6 +39,24 @@ describe("gridDayLabels", () => {
 
   it("경계값: 빈 배열이면 빈 배열을 반환한다", () => {
     expect(gridDayLabels([])).toEqual([]);
+  });
+});
+
+describe("formatMinutesAsClock", () => {
+  it("정상 케이스: 오전 시각을 12시간제로 표시한다", () => {
+    expect(formatMinutesAsClock(450)).toBe("7:30"); // 7:30
+    expect(formatMinutesAsClock(480)).toBe("8:00"); // 8:00
+  });
+
+  it("정상 케이스: 오후 시각도 AM/PM 없이 12시간제로 표시한다 (실물 표기 그대로)", () => {
+    expect(formatMinutesAsClock(840)).toBe("2:00"); // 14:00 → 2:00
+    expect(formatMinutesAsClock(900)).toBe("3:00"); // 15:00 → 3:00
+    expect(formatMinutesAsClock(1020)).toBe("5:00"); // 17:00 → 5:00
+  });
+
+  it("경계값: 정오는 12:00, 자정은 12:00으로 표시한다", () => {
+    expect(formatMinutesAsClock(750)).toBe("12:30"); // 12:30
+    expect(formatMinutesAsClock(0)).toBe("12:00");
   });
 });
 

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { isOverdue, isValidDateString, todayKST, weekRangeKST } from "@/lib/date";
+import { isOverdue, isValidDateString, nowMinuteKST, todayKST, weekRangeKST } from "@/lib/date";
 
 describe("isValidDateString", () => {
   it("정상 케이스: 유효한 YYYY-MM-DD 문자열을 통과시킨다", () => {
@@ -45,6 +45,23 @@ describe("todayKST / isOverdue", () => {
     vi.setSystemTime(new Date("2026-07-29T12:00:00+09:00"));
     expect(isOverdue("2026-07-29", "PLANNED")).toBe(false);
     expect(isOverdue("2026-07-30", "PLANNED")).toBe(false);
+  });
+});
+
+describe("nowMinuteKST", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("정상 케이스: KST 기준 자정부터 지난 분 수를 반환한다", () => {
+    vi.setSystemTime(new Date("2026-07-29T08:00:00+09:00"));
+    expect(nowMinuteKST()).toBe(8 * 60);
+  });
+
+  it("KST 자정을 넘는 UTC 시각도 KST 기준으로 계산한다", () => {
+    // UTC 2026-07-28T15:30:00Z == KST 2026-07-29 00:30
+    vi.setSystemTime(new Date("2026-07-28T15:30:00Z"));
+    expect(nowMinuteKST()).toBe(30);
   });
 });
 

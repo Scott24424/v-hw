@@ -288,3 +288,23 @@
 - 남은 이슈:
   - `/schedule`(§6.3), `/manage/books`, `/manage/routine`은 아직 placeholder/미구현
   - 과제 생성·필드 수정(제목/날짜/진도 등) 폼은 앱 전체에 아직 없음 — 별도 기능으로 남음
+
+## [2026-07-31 07:40] "/schedule" 시간표 뷰 구현 (§6.3)
+- 변경 파일: app/schedule/page.tsx(placeholder → 실제 구현), app/_components/connect-assignment-button.tsx(신규), app/_components/format.ts(formatMinutesAsClock 추가), lib/date.ts(nowMinuteKST 추가), tests/format.test.ts(formatMinutesAsClock 3건 추가), tests/date.test.ts(nowMinuteKST 2건 추가), e2e/schedule-page.spec.ts(신규), e2e/today-page.spec.ts(schedule placeholder 검증을 실제 heading 검증으로 교체), docs/decisions.md(4건 추가)
+- 브랜치: feature/ui-schedule-screen (main 기준)
+- 작업 내용: architecture.md §6.3 세로 타임라인(7:30~17:00) 구현 — `GET /api/days/:date`를 만들 때 이미 작성한 `lib/days/view.ts`의 `buildDayView`를 그대로 재사용(§4.1의 "isActive 블록 전체 + 그날 Assignment 조인"이 정확히 같은 로직)
+  - 블록 높이는 시간 길이에 비례시키지 않고, "지금" 인디케이터는 현재 시각이 속한 블록 자체를 강조하는 방식으로 구현(decisions.md)
+  - `formatMinutesAsClock` — 자정 기준 분을 실물 표기 그대로 AM/PM 없는 12시간제로 변환("14:00"이 아니라 "2:00")
+  - ROUTINE 블록은 흐리게(`opacity-60`), "과제 연결" 버튼 없음(§4.2)
+  - 빈 STUDY 블록에는 `ConnectAssignmentButton`(신규 클라이언트 컴포넌트) — 그날 미연결 과제 중에서 골라 `PATCH .../:id`의 `routineBlockId`로 연결. 새 과제 생성 폼 없이 기존 API만으로 구현(decisions.md, 범위 근거)
+- **실제 앱 구동 검증**: `npm run dev`로 실제 서버 실행 후 API로 §4.3 실물 9블록 시드 + 오늘 과제 3건(연결+완료, 연결, 미연결) 생성 → Playwright로 헤드리스 브라우저 스크린샷. 시간 레이블("2:00 ~ 3:00" 등)·ROUTINE 흐림·"지금" 강조·체크박스·과제 연결 버튼이 육안으로 정상 렌더링됨을 확인. "과제 연결" 클릭→후보 선택→실제 연결까지 네트워크 응답(200) 직접 확인 후 시드 데이터 정리(첫 시도는 화면 갱신을 기다리지 않고 스크린샷을 찍어 반영 전 상태를 오인할 뻔했다가 응답 대기로 재확인)
+- 검증 결과 (모두 실제 실행, 출력 확인됨):
+  - `npm run lint` — 출력 없음(무경고)
+  - `npx tsc --noEmit` — 에러 0
+  - `npm run test`(vitest) — 신규 `formatMinutesAsClock` 3개, `nowMinuteKST` 2개 포함 총 88개 전부 통과
+  - `npm run build` — 성공, `/schedule`이 Dynamic(ƒ)으로 정상 등록됨
+  - `npx playwright test`(e2e, 실제 dev 서버+SQLite) — 총 54개 전부 통과. 신규 5개(schedule-page.spec.ts): 연결된 과제 시간 범위+체크, ROUTINE 흐림+버튼 없음, 미연결 과제 연결 플로우, 연결 후보 없을 때 안내, SKIPPED 연결 과제 제외. 기존 today-page.spec.ts의 schedule placeholder 검증도 실제 heading 검증으로 갱신
+- 남은 이슈:
+  - `/manage/books`, `/manage/routine`은 아직 placeholder/미구현
+  - 과제 생성 폼(제목·날짜·유형·진도 등 신규 입력)은 앱 전체에 여전히 없음 — 이제 §6의 5개 화면 중 마지막 두 관리 화면과 이 폼이 남음
+  - "지금" 인디케이터는 실행 시각에 의존해 e2e로 결정적 검증 불가 — 실제 구동 스크린샷으로만 확인
