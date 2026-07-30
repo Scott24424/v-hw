@@ -57,6 +57,8 @@ test("밀린 것 / 오늘 / 이번 주로 날짜 조건에 따라 정확히 나�
   expect(response.ok()).toBe(true);
   const body = await response.json();
 
+  expect(body.date).toBe(today);
+
   const ids = (list: { id: number }[]) => list.map((a) => a.id);
 
   expect(ids(body.overdue)).toContain(overdue.id);
