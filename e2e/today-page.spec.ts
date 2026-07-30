@@ -32,7 +32,7 @@ test("하단 내비게이션 3탭이 보이고 달력·시간표로 이동할 �
 
   await page.getByRole("link", { name: "시간표" }).click();
   await expect(page).toHaveURL(/\/schedule$/);
-  await expect(page.getByText("시간표 화면은 준비 중이에요.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: /시간표$/ })).toBeVisible();
 });
 
 test("밀린 과제가 밀린 것 섹션에 날짜와 함께 나타난다", async ({ request, page }) => {

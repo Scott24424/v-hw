@@ -25,6 +25,15 @@ export function gridDayLabels(dates: string[]): string[] {
   });
 }
 
+// architecture.md §0.2: 실물 시간표는 12시간제(AM/PM 표기 없이)로 적혀 있고, 저장은
+// 자정 기준 분(24시간제)이다. 화면은 실물 표기를 그대로 재현한다 — "14:00"이 아니라 "2:00".
+export function formatMinutesAsClock(totalMinutes: number): string {
+  const hour24 = Math.floor(totalMinutes / 60);
+  const minute = totalMinutes % 60;
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  return `${hour12}:${String(minute).padStart(2, "0")}`;
+}
+
 export function progressLabel(assignment: {
   type: string;
   progressUnit: string | null;

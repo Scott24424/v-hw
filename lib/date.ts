@@ -26,6 +26,13 @@ export function isOverdue(date: string, status: AssignmentStatus): boolean {
   return date < todayKST() && OVERDUE_STATUSES.includes(status);
 }
 
+// /schedule의 "현재 시각 인디케이터"(§6.3)가 자정 기준 분으로 표시된 RoutineBlock과
+// 직접 비교하기 위한 값. todayKST()와 동일한 KST 오프셋 방식으로 계산.
+export function nowMinuteKST(): number {
+  const kst = new Date(Date.now() + KST_OFFSET_MS);
+  return kst.getUTCHours() * 60 + kst.getUTCMinutes();
+}
+
 function addDays(date: string, days: number): string {
   const [year, month, day] = date.split("-").map(Number);
   const result = new Date(Date.UTC(year, month - 1, day));
