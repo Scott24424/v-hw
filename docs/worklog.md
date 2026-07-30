@@ -200,3 +200,20 @@
 - 남은 이슈:
   - `GET /api/days/:date`는 architecture.md §5에 명시된 대로 다음 기능 단위로 별도 구현
   - push는 사용자 승인 대기 중이 아니라 CLAUDE.md "작업 브랜치에는 자유롭게 push" 규칙에 따라 이어서 push+PR 진행 예정
+
+## [2026-07-30 08:25] GET /api/days/:date 구현
+- 변경 파일: app/api/days/[date]/route.ts(신규), lib/days/view.ts(신규, buildDayView 순수 함수), tests/days-view.test.ts(신규), e2e/days-api.spec.ts(신규), docs/decisions.md(2건 추가)
+- 브랜치: feature/api-days (main 기준, 아직 push 안 함)
+- 작업 내용: architecture.md §5의 마지막 남은 endpoint `GET /api/days/:date`(그날 시간표 블록 + 연결된 과제 + 미연결 과제) 구현. §5의 다른 endpoint와 달리 JSON 스키마가 문서에 명시돼 있지 않아 §4.1/§5.1/§6.3 근거로 직접 설계(decisions.md)
+  - `lib/days/view.ts`의 `buildDayView(date, blocks, assignments)` — DB 조회와 분리된 순수 함수. 블록별 그룹화 로직을 단위 테스트로 커버(route handler 자체는 기존 관행대로 e2e로 검증)
+  - 비활성화된 블록에 연결된 과제가 응답에서 통째로 사라지는 결함을 설계 중 발견 → 그런 과제도 `unlinkedAssignments`로 떨어지도록 방어 처리(decisions.md)
+  - 날짜 형식 검증은 기존 `isValidDateString` 재사용, 잘못된 형식은 400(§5.2)
+- 검증 결과 (모두 실제 실행, 출력 확인됨):
+  - `npm run lint` — 출력 없음(무경고)
+  - `npx tsc --noEmit` — 출력 없음(에러 0)
+  - `npm run test`(vitest) — 신규 `days-view.test.ts` 6개 포함 총 64개 전부 통과. 정상 연결/미연결(null)/미연결(비활성 블록 참조)/빈 블록/같은 블록 다중 과제 순서 보존/date 필드 포함 케이스 모두 포함
+  - `npm run build` — 성공, `/api/days/[date]`가 Dynamic(ƒ)으로 정상 등록됨
+  - `npx playwright test`(e2e, 실제 dev 서버+SQLite) — 총 36개 전부 통과. 신규 4개: 잘못된 날짜 400 / 활성 블록 연결+미연결 분리 / 비활성 블록 연결 과제가 미연결로 나타남(위 결함 방지 확인) / 다른 날짜 과제 배제
+- 남은 이슈:
+  - architecture.md §5의 API 엔드포인트 표 전체 구현 완료. 다음은 §6 화면(UI) 단계로 넘어갈 차례
+  - push는 CLAUDE.md "작업 브랜치에는 자유롭게 push" 규칙에 따라 이어서 진행
