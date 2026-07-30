@@ -4,6 +4,7 @@ import {
   assignmentLabel,
   formatKoreanDate,
   formatShortDate,
+  gridDayLabels,
   progressLabel,
 } from "@/app/_components/format";
 
@@ -21,6 +22,22 @@ describe("formatKoreanDate", () => {
 describe("formatShortDate", () => {
   it("정상 케이스: YYYY-MM-DD를 'M/D'로 줄인다", () => {
     expect(formatShortDate("2026-07-29")).toBe("7/29");
+  });
+});
+
+describe("gridDayLabels", () => {
+  it("정상 케이스: 월이 바뀌는 칸에만 월을 붙인다 (mockup plan-20days.jpg 재현)", () => {
+    expect(
+      gridDayLabels(["2026-07-29", "2026-07-30", "2026-07-31", "2026-08-01", "2026-08-02"]),
+    ).toEqual(["7/29", "30", "31", "8/1", "2"]);
+  });
+
+  it("경계값: 첫 날짜는 항상 월을 붙인다", () => {
+    expect(gridDayLabels(["2026-08-05"])).toEqual(["8/5"]);
+  });
+
+  it("경계값: 빈 배열이면 빈 배열을 반환한다", () => {
+    expect(gridDayLabels([])).toEqual([]);
   });
 });
 

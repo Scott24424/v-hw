@@ -269,3 +269,22 @@
   - `/calendar`(§6.2), `/schedule`(§6.3), `/manage/books`, `/manage/routine`은 아직 placeholder/미구현
   - "이번 주 남은 것" 링크는 임의로 `/calendar`로 연결 — 전용 화면이 생기면 재검토
   - PWA manifest(§6.4)는 이번 범위에서 제외
+
+## [2026-07-30 15:32] "/calendar" 달력 뷰 구현 (§6.2)
+- 변경 파일: app/calendar/page.tsx(placeholder → 실제 구현), app/calendar/[date]/page.tsx(신규), lib/calendar/grid.ts(신규), app/_components/format.ts(gridDayLabels 추가), tests/calendar-grid.test.ts(신규), tests/format.test.ts(gridDayLabels 3건 추가), e2e/calendar-page.spec.ts(신규), e2e/today-page.spec.ts(placeholder 문구 검증을 실제 heading 검증으로 교체), docs/decisions.md(4건 추가)
+- 브랜치: feature/ui-calendar-screen (main 기준)
+- 작업 내용: architecture.md §6.2 달력 뷰 구현 — mockup(plan-20days.jpg) 실사진을 직접 확인해 요일 정렬이 아니라 7/29~8/17을 5일씩 순서대로 끊는 그리드임을 확인하고 그대로 재현
+  - `lib/calendar/grid.ts` — `VACATION_START`/`VACATION_END`(하드코딩, decisions.md 근거) + `dateRange`/`chunk` 순수 함수
+  - `gridDayLabels` — mockup처럼 월이 바뀌는 칸에만 "7/29"·"8/1", 나머지는 "30"·"2"처럼 일자만 표시
+  - `/calendar` 페이지: 20일 전체 assignment를 한 번에 조회해 날짜별로 묶어 그리드 렌더링, 오늘 칸 강조, DONE/SKIPPED는 취소선
+  - `/calendar/[date]` 페이지: 그날 과제 목록 + 완료 체크(홈 화면 컴포넌트 재사용) — "탭 → 그날 편집"의 1차 범위(전체 CRUD 폼은 아직 없음, decisions.md)
+- **실제 앱 구동 검증**: `npm run dev` 백그라운드 실행 후 API로 mockup과 유사한 실데이터(Big Note ch.6/12, 김치찌개, 일기, work sheet 등) 시딩 → Playwright(node 스크립트, chromium-cli 미설치라 playwright 패키지 직접 사용)로 실제 헤드리스 브라우저 스크린샷 확인. 그리드 레이아웃·월 경계 라벨·오늘 강조·완료 취소선이 육안으로 정상 렌더링됨을 확인. 날짜 칸 클릭 → 상세 페이지 이동 → 체크박스 클릭 → 상태 변경까지 실제 클릭으로 재현, `console --errors` 없음 확인 후 시드 데이터 정리
+- 검증 결과 (모두 실제 실행, 출력 확인됨):
+  - `npm run lint` — 출력 없음(무경고)
+  - `npx tsc --noEmit` — 에러 0
+  - `npm run test`(vitest) — 신규 `calendar-grid.test.ts` 7개 + `format.test.ts`에 `gridDayLabels` 3개 추가, 총 83개 전부 통과
+  - `npm run build` — 성공, `/calendar`·`/calendar/[date]`가 Dynamic(ƒ)으로 정상 등록됨
+  - `npx playwright test`(e2e, 실제 dev 서버+SQLite) — 총 49개 전부 통과. 신규 6개(calendar-page.spec.ts): 그리드 렌더링+월 경계 라벨, 완료 취소선, 탭→상세 이동+체크박스 토글, 빈 날 안내 문구 없음, SKIPPED 제외, 잘못된 날짜 404. 기존 `today-page.spec.ts`의 달력 placeholder 검증도 실제 heading 검증으로 갱신
+- 남은 이슈:
+  - `/schedule`(§6.3), `/manage/books`, `/manage/routine`은 아직 placeholder/미구현
+  - 과제 생성·필드 수정(제목/날짜/진도 등) 폼은 앱 전체에 아직 없음 — 별도 기능으로 남음

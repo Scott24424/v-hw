@@ -28,7 +28,7 @@ test("하단 내비게이션 3탭이 보이고 달력·시간표로 이동할 �
 
   await page.getByRole("link", { name: "달력" }).click();
   await expect(page).toHaveURL(/\/calendar$/);
-  await expect(page.getByText("달력 화면은 준비 중이에요.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "달력" })).toBeVisible();
 
   await page.getByRole("link", { name: "시간표" }).click();
   await expect(page).toHaveURL(/\/schedule$/);
