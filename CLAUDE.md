@@ -44,6 +44,12 @@
 - 범위를 벗어나면 PR만 생성하고 사용자 승인을 기다린다. 즉시 `gh pr merge`(auto 플래그 없이)는 절대 실행하지 않는다.
 - 완료 보고에는 반드시 다음 중 하나를 명시한다: "auto-merge 예약함(gh pr merge --auto 실행 완료)"
   또는 "자동 머지 범위 아님 — 사유: <금지 경로/사유>. 사용자 승인 대기."
+- auto-merge를 예약한 뒤에는 `gh pr view <번호> --json mergeStateStatus`로 상태를 확인한다.
+  - `BEHIND`이면 `gh api repos/<owner>/<repo>/pulls/<번호>/update-branch -X PUT`을 스스로 호출해
+    브랜치를 최신 main과 동기화한다. 이후 CI가 재실행되고 통과하면 예약해둔 auto-merge가 이어서 처리된다.
+  - `BLOCKED`이면서 원인이 required check 자체(이름 불일치, 워크플로우 오류 등)로 보이면
+    수정하려 하지 말고 사용자에게 보고한다. 이는 인프라 설정 문제이지 코드 문제가 아니다.
+  - 완료 보고에는 위 처리를 했는지(`BEHIND → update-branch 호출함` 등)도 함께 기록한다.
 - 완료 보고 시 실행한 명령과 실제 출력을 함께 제시한다. 출력 없는 완료 보고는 금지.
 
 ## 금지 사항
