@@ -249,3 +249,23 @@
   - `npm run build` — 성공, `/api/assignments/[id]`가 Dynamic(ƒ)으로 정상 등록됨
   - `npx playwright test`(e2e, 실제 dev 서버+SQLite) — 총 38개 전부 통과, 복구된 GET 테스트 2개 포함(정상 조회+isOverdue 포함 확인, 존재하지 않는 id 404)
 - 재발 방지: base가 main이 아닌 PR은 base 브랜치가 main에 머지되는 즉시 `gh pr edit --base main`으로 재설정한다. 그리고 어떤 PR이든 "MERGED" 상태만으로 main 반영을 단정하지 않고, 필요하면 `git log origin/main --oneline | grep <커밋 SHA>`로 직접 확인한다(decisions.md에도 동일 교훈 기록).
+
+## [2026-07-30 12:53] "/" 오늘 할 일 화면 구현 (§6.1)
+- 변경 파일: app/page.tsx(전면 교체), app/layout.tsx(dvh·메타데이터), app/_components/assignment-checkbox.tsx(신규), app/_components/bottom-nav.tsx(신규), app/_components/format.ts(신규), app/calendar/page.tsx(신규, placeholder), app/schedule/page.tsx(신규, placeholder), lib/summary/remaining.ts(신규, route에서 추출 + date 필드 추가), app/api/summary/remaining/route.ts(lib 호출로 축소), e2e/today-page.spec.ts(신규), e2e/smoke.spec.ts(수정), e2e/summary-remaining-api.spec.ts(date 필드 검증 추가), tests/format.test.ts(신규), docs/decisions.md(5건 추가)
+- 브랜치: feature/ui-today-screen (main 기준)
+- 작업 내용: architecture.md §6.1 "오늘 할 일" 화면 구현 — 밀린 것/오늘 할 일(체크박스로 DONE 토글)/이번 주 남은 것 요약, §6.4의 하단 3탭 내비게이션
+  - "오늘" 섹션은 완료 포함 전체 필요 → summary/remaining과 별개로 해당 날짜 전체 조회(decisions.md)
+  - `/api/summary/remaining`에 `date` 필드 추가해 "오늘" 기준을 서버 단일 소스로 통일(§3.2)
+  - `/calendar`, `/schedule`은 준비 중 placeholder로 먼저 만들어 nav 404 방지
+  - **버그 발견 및 수정**: "/"가 기본적으로 Static 프리렌더링되는 걸 빌드 로그에서 발견 — `export const dynamic = "force-dynamic"`으로 강제 전환하지 않았다면 매 요청마다 DB를 다시 읽지 않고 빌드 시점 스냅샷을 계속 보여주는 심각한 버그가 됐을 것
+  - **더 큰 버그 발견 및 복구**: 이 작업 도중 `GET /api/assignments/:id`가 실제로는 main에 없다는 걸 e2e 실패로 발견 — 별도 fix 브랜치(fix/restore-assignment-get-route, PR #18)로 복구 후 이 브랜치를 그 위에서 재시작. 자세한 경위는 "fix: GET /api/assignments/:id 라우트 유실 복구" 항목 참고
+- 검증 결과 (모두 실제 실행, 출력 확인됨):
+  - `npm run lint` — 출력 없음(무경고)
+  - `npx tsc --noEmit` — 에러 0 (중간에 이전 브랜치가 남긴 `.next` 캐시로 존재하지 않는 라우트 타입 에러가 났으나 `.next` 삭제로 해결, 코드 문제 아님)
+  - `npm run test`(vitest) — 신규 `format.test.ts` 9개 포함 총 73개 전부 통과
+  - `npm run build` — 성공. 최초 빌드에서 "/"가 Static(○)으로 나온 문제를 `force-dynamic`으로 수정 후 재빌드해 Dynamic(ƒ) 확인
+  - `npx playwright test`(e2e, 실제 dev 서버+SQLite) — 총 43개 전부 통과. 신규 5개(today-page.spec.ts): 하단 내비게이션 이동, 밀린 것 섹션 날짜 표시, READING 진도 라벨, 체크박스 토글(DONE↔PLANNED, API로 실제 상태 변경 확인 — 복구된 GET 라우트로 검증), SKIPPED 제외
+- 남은 이슈:
+  - `/calendar`(§6.2), `/schedule`(§6.3), `/manage/books`, `/manage/routine`은 아직 placeholder/미구현
+  - "이번 주 남은 것" 링크는 임의로 `/calendar`로 연결 — 전용 화면이 생기면 재검토
+  - PWA manifest(§6.4)는 이번 범위에서 제외
