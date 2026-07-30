@@ -26,6 +26,26 @@ test.afterAll(async () => {
   await prisma.$disconnect();
 });
 
+test("존재하는 과제를 단건 조회하면 isOverdue를 포함해 반환한다", async ({ request }) => {
+  const created = await request.post("/api/assignments", {
+    data: { date: "2026-07-29", type: "DIARY", title: "__e2e_get_by_id__" },
+  });
+  const createdBody = await created.json();
+  assignmentIds.push(createdBody.id);
+
+  const fetched = await request.get(`/api/assignments/${createdBody.id}`);
+  expect(fetched.ok()).toBe(true);
+  const fetchedBody = await fetched.json();
+  expect(fetchedBody.id).toBe(createdBody.id);
+  expect(fetchedBody.title).toBe("__e2e_get_by_id__");
+  expect(fetchedBody).toHaveProperty("isOverdue");
+});
+
+test("존재하지 않는 과제를 단건 조회하면 404를 반환한다", async ({ request }) => {
+  const response = await request.get("/api/assignments/999999");
+  expect(response.status()).toBe(404);
+});
+
 test("READING이 아닌 과제를 부분 수정할 수 있다", async ({ request }) => {
   const created = await request.post("/api/assignments", {
     data: { date: "2026-07-29", type: "DIARY", title: "__e2e_diary__" },
