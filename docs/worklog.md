@@ -242,5 +242,10 @@
 - 변경 파일: app/api/assignments/[id]/route.ts(GET 복구), e2e/assignments-detail-api.spec.ts(GET 테스트 2건 복구), docs/decisions.md(사고 후기 추가)
 - 브랜치: fix/restore-assignment-get-route (main 기준)
 - 조치: 원래 커밋(fc8297c, `origin/feature/api-assignment-get-by-id`에 여전히 존재)을 `git cherry-pick`으로 main 기준 새 브랜치에 그대로 재적용. docs/decisions.md·worklog.md 충돌만 발생(둘 다 append-only 로그 — 두 쪽 다 보존하고 시간순으로 재배치).
-- 검증 결과: 아래 커밋 참고(재검증 완료 후 기록)
+- 검증 결과 (cherry-pick 후 재실행, 모두 실제 실행·출력 확인됨):
+  - `npm run lint` — 출력 없음(무경고)
+  - `npx tsc --noEmit` — 최초 실행에서 이전 브랜치 빌드가 남긴 `.next` 캐시 때문에 존재하지 않는 라우트(app/calendar, app/schedule) 타입 참조 에러 발생 → `.next` 삭제 후 재실행해 에러 0 확인(코드 문제 아님)
+  - `npm run test`(vitest) — 기존 64개 전부 통과
+  - `npm run build` — 성공, `/api/assignments/[id]`가 Dynamic(ƒ)으로 정상 등록됨
+  - `npx playwright test`(e2e, 실제 dev 서버+SQLite) — 총 38개 전부 통과, 복구된 GET 테스트 2개 포함(정상 조회+isOverdue 포함 확인, 존재하지 않는 id 404)
 - 재발 방지: base가 main이 아닌 PR은 base 브랜치가 main에 머지되는 즉시 `gh pr edit --base main`으로 재설정한다. 그리고 어떤 PR이든 "MERGED" 상태만으로 main 반영을 단정하지 않고, 필요하면 `git log origin/main --oneline | grep <커밋 SHA>`로 직접 확인한다(decisions.md에도 동일 교훈 기록).
