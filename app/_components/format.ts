@@ -11,6 +11,20 @@ export function formatShortDate(dateStr: string): string {
   return `${month}/${day}`;
 }
 
+// mockup(plan-20days.jpg)은 달이 바뀌는 칸에만 "7/29", "8/1"처럼 월을 적고
+// 나머지는 "30", "31"처럼 일자만 적는다. 순서대로 훑으며 같은 규칙을 재현한다.
+export function gridDayLabels(dates: string[]): string[] {
+  let previousMonth: number | null = null;
+  return dates.map((date) => {
+    const [, monthStr, dayStr] = date.split("-");
+    const month = Number(monthStr);
+    const day = Number(dayStr);
+    const label = month !== previousMonth ? `${month}/${day}` : `${day}`;
+    previousMonth = month;
+    return label;
+  });
+}
+
 export function progressLabel(assignment: {
   type: string;
   progressUnit: string | null;
