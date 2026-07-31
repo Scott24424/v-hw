@@ -53,3 +53,7 @@
 - [2026-07-31] 블록 추가·수정 폼에서 `sortOrder`는 입력받지 않는다(스키마상 선택 필드, 기본값 0). 같은 `startMinute`을 가진 블록이 여러 개인 실사용 시나리오가 없고(§4.3 실물 9블록이 전부 시각이 겹치지 않음), 목록은 `sortOrder → startMinute` 순으로 이미 정렬돼 있어 `startMinute` 하나로 충분히 구분된다. 필요해지면 필드를 추가하면 되고 기존 데이터(전부 0)에 영향 없음.
 - [2026-07-31] 블록 추가 폼과 각 행의 인라인 수정 폼을 하나의 `RoutineBlockForm` 컴포넌트로 공유한다(mode="create"|"edit"). 필드 구성이 완전히 동일하고 차이는 초기값과 제출 대상 엔드포인트(POST vs PATCH)뿐이라 별도 컴포넌트로 나누면 중복만 생긴다.
 - [2026-07-31] 삭제는 `window.confirm()` 네이티브 다이얼로그로 확인을 거친 뒤 실행한다. §5.1이 "삭제는 물리 삭제"로 이미 확정했고(soft delete 없음) 되돌릴 수단이 없어, 실수로 지우는 걸 막는 최소한의 확인 단계를 둔다.
+- [2026-07-31] `/manage/books`에는 삭제 버튼을 두지 않는다. `/manage/routine`(§5에 DELETE 명시)과 달리 architecture.md §5 API 표에는 애초에 `DELETE /api/books/:id`가 없다 — 과거 결정에서 "명세에 없는 DELETE/단건 GET은 추가하지 않음(범위 그대로)"로 이미 확정된 사항. 이번 화면도 설계 문서의 API 범위를 그대로 따른다.
+- [2026-07-31] "진도 현황"은 Book에 별도 진도 필드를 두지 않고, 그 책을 가리키는 READING 과제 중 가장 최근(date desc, id desc) 것의 `progressEnd`/`progressUnit`에서 매번 파생한다(`lib/books/progress.ts`). architecture.md §1.4가 이미 "progressStart는 직전 progressEnd에서 파생, 진도를 별도로 저장하지 않는다"를 확정해 둔 것과 같은 원칙 — POST /api/assignments의 progressStart 자동 채움 쿼리와 동일한 정렬 기준을 재사용해 두 값이 항상 일치하도록 함.
+- [2026-07-31] 진도 표시의 분모(총 챕터/페이지)는 최신 과제의 `progressUnit`에 맞는 쪽만 쓴다(CHAPTER면 totalChapters, PAGE면 totalPages) — 책 하나가 두 단위를 같이 쓸 일은 없지만, 혹시 데이터가 섞여도 표시가 틀린 분모를 보여주지 않도록 방어.
+- [2026-07-31] `/manage/books` 진입 링크는 `/calendar`에 추가했다(§6.4 하단 3탭에 없는 화면). 책 진도가 달력에서 과제 칩으로 가장 자주 눈에 띄는 화면이라 가장 관련 있는 진입점으로 판단 — `/manage/routine`을 `/schedule`에서 드릴다운하게 한 것과 같은 패턴.
