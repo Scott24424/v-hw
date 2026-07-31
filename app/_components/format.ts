@@ -34,6 +34,19 @@ export function formatMinutesAsClock(totalMinutes: number): string {
   return `${hour12}:${String(minute).padStart(2, "0")}`;
 }
 
+// <input type="time">는 "HH:MM"(24시간제) 문자열을 주고받는다. RoutineBlock은
+// 자정 기준 분으로 저장하므로 폼과 API 사이를 이 두 함수로 잇는다.
+export function minutesToTimeInputValue(totalMinutes: number): string {
+  const hour = Math.floor(totalMinutes / 60);
+  const minute = totalMinutes % 60;
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+export function timeInputValueToMinutes(value: string): number {
+  const [hour, minute] = value.split(":").map(Number);
+  return hour * 60 + minute;
+}
+
 export function progressLabel(assignment: {
   type: string;
   progressUnit: string | null;

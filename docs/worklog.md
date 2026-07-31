@@ -308,3 +308,21 @@
   - `/manage/books`, `/manage/routine`은 아직 placeholder/미구현
   - 과제 생성 폼(제목·날짜·유형·진도 등 신규 입력)은 앱 전체에 여전히 없음 — 이제 §6의 5개 화면 중 마지막 두 관리 화면과 이 폼이 남음
   - "지금" 인디케이터는 실행 시각에 의존해 e2e로 결정적 검증 불가 — 실제 구동 스크린샷으로만 확인
+
+## [2026-07-31 09:30] "/manage/routine" 시간표 관리 화면 구현 (§6)
+- 변경 파일: app/manage/routine/page.tsx(신규), app/_components/routine-block-form.tsx(신규), app/_components/routine-block-row.tsx(신규), app/_components/format.ts(minutesToTimeInputValue/timeInputValueToMinutes 추가), app/schedule/page.tsx(관리 화면 진입 링크 추가), tests/format.test.ts(3건 추가), e2e/manage-routine-page.spec.ts(신규), docs/decisions.md(5건 추가)
+- 브랜치: feature/ui-manage-routine (main 기준)
+- 작업 내용: architecture.md §6 "/manage/routine — 블록 추가·수정·삭제" 구현. 지금까지 미뤄온 "실제 생성/수정 폼"을 이 화면에서는 정식으로 구현 — 관리 화면 자체가 CRUD 전용이라 범위를 좁힐 이유가 없음
+  - `RoutineBlockForm`(create/edit 공용) — `<input type="time">`로 시작·종료 입력받아 자정 기준 분으로 변환, 이름·분류(학습/생활) 입력. 서버 검증 실패(zod flatten 에러)를 폼 안에 그대로 표시
+  - `RoutineBlockRow` — 끄기/켜기(isActive 토글), 수정(인라인으로 RoutineBlockForm 전환), 삭제(confirm 확인 후 물리 삭제)
+  - `/schedule`에 "시간표 관리 →" 링크, `/manage/routine`에 "← 시간표로" 링크로 진입·복귀 경로 마련(§6.4 하단 3탭에 없는 화면이라 BottomNav 대신)
+- **실제 앱 구동 검증**: `npm run dev`로 서버 실행 후 Playwright로 추가→목록 반영, 끄기/켜기 토글, 수정(라벨 변경), 삭제(confirm 다이얼로그 처리)까지 전부 실제 클릭+네트워크 응답으로 확인. 중간에 즉석 검증 스크립트의 선택자 문제(상단 "블록 추가" 폼과 인라인 수정 폼에 동시에 존재하는 "이름" input을 혼동, 수정 모드 진입 후 라벨 텍스트가 input value로 옮겨가 `hasText`가 행을 못 잡음)로 두 번 오탐했다가 구조적 선택자(`ul > li`)와 API 직접 조회로 실제로는 정상 동작함을 재확인
+- 검증 결과 (모두 실제 실행, 출력 확인됨):
+  - `npm run lint` — 출력 없음(무경고)
+  - `npx tsc --noEmit` — 에러 0
+  - `npm run test`(vitest) — 신규 `minutesToTimeInputValue`/`timeInputValueToMinutes` 3개 포함 총 91개 전부 통과
+  - `npm run build` — 성공, `/manage/routine`이 Dynamic(ƒ)으로 정상 등록됨
+  - `npx playwright test`(e2e, 실제 dev 서버+SQLite) — 총 60개 전부 통과. 신규 6개(manage-routine-page.spec.ts): 추가→목록 반영, 검증 실패 에러 메시지 표시, 끄기/켜기, 수정+취소(취소 시 미반영 확인), 삭제(confirm), 진입·복귀 링크
+- 남은 이슈:
+  - `/manage/books`는 아직 placeholder/미구현 — architecture.md §6 화면 5개 중 마지막 하나
+  - 과제(Assignment) 생성 폼은 여전히 없음(제목·날짜·유형·진도 등) — 이번에 만든 건 RoutineBlock 전용

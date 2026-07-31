@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { AssignmentCheckbox } from "@/app/_components/assignment-checkbox";
 import { BottomNav } from "@/app/_components/bottom-nav";
 import { ConnectAssignmentButton } from "@/app/_components/connect-assignment-button";
@@ -36,9 +38,17 @@ export default async function SchedulePage() {
   return (
     <div className="flex flex-1 flex-col">
       <main className="mx-auto w-full max-w-2xl flex-1 overflow-y-auto px-4 py-6">
-        <h1 className="mb-6 text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-          {formatKoreanDate(today)} 시간표
-        </h1>
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
+            {formatKoreanDate(today)} 시간표
+          </h1>
+          <Link
+            href="/manage/routine"
+            className="flex min-h-11 items-center text-sm text-blue-600 dark:text-blue-400"
+          >
+            시간표 관리 →
+          </Link>
+        </div>
 
         {view.blocks.length === 0 ? (
           <p className="text-zinc-500 dark:text-zinc-400">등록된 시간표가 없어요.</p>

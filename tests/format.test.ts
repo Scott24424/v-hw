@@ -6,7 +6,9 @@ import {
   formatMinutesAsClock,
   formatShortDate,
   gridDayLabels,
+  minutesToTimeInputValue,
   progressLabel,
+  timeInputValueToMinutes,
 } from "@/app/_components/format";
 
 describe("formatKoreanDate", () => {
@@ -57,6 +59,23 @@ describe("formatMinutesAsClock", () => {
   it("경계값: 정오는 12:00, 자정은 12:00으로 표시한다", () => {
     expect(formatMinutesAsClock(750)).toBe("12:30"); // 12:30
     expect(formatMinutesAsClock(0)).toBe("12:00");
+  });
+});
+
+describe("minutesToTimeInputValue / timeInputValueToMinutes", () => {
+  it("정상 케이스: 분을 <input type=\"time\">의 HH:MM 형식으로 바꾼다", () => {
+    expect(minutesToTimeInputValue(450)).toBe("07:30");
+    expect(minutesToTimeInputValue(900)).toBe("15:00");
+  });
+
+  it("경계값: 자정(0분)과 자정 직전(1439분)을 올바르게 표시한다", () => {
+    expect(minutesToTimeInputValue(0)).toBe("00:00");
+    expect(minutesToTimeInputValue(1439)).toBe("23:59");
+  });
+
+  it("정상 케이스: HH:MM 문자열을 분으로 되돌린다 (왕복 변환)", () => {
+    expect(timeInputValueToMinutes("07:30")).toBe(450);
+    expect(timeInputValueToMinutes(minutesToTimeInputValue(900))).toBe(900);
   });
 });
 
