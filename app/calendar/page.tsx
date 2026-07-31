@@ -36,7 +36,15 @@ export default async function CalendarPage() {
   return (
     <div className="flex flex-1 flex-col">
       <main className="mx-auto w-full max-w-4xl flex-1 overflow-y-auto px-2 py-4">
-        <h1 className="mb-4 px-2 text-2xl font-bold text-zinc-900 dark:text-zinc-50">달력</h1>
+        <div className="mb-4 flex items-center justify-between px-2">
+          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">달력</h1>
+          <Link
+            href="/manage/books"
+            className="flex min-h-11 items-center text-sm text-blue-600 dark:text-blue-400"
+          >
+            책 관리 →
+          </Link>
+        </div>
         <div className="flex flex-col gap-1">
           {rows.map((row) => (
             <div key={row[0].date} className="grid grid-cols-5 gap-1">

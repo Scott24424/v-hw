@@ -326,3 +326,23 @@
 - 남은 이슈:
   - `/manage/books`는 아직 placeholder/미구현 — architecture.md §6 화면 5개 중 마지막 하나
   - 과제(Assignment) 생성 폼은 여전히 없음(제목·날짜·유형·진도 등) — 이번에 만든 건 RoutineBlock 전용
+
+## [2026-07-31 10:07] "/manage/books" 책 관리 화면 구현 (§6, architecture.md §6 화면 5개 전체 완료)
+- 변경 파일: app/manage/books/page.tsx(신규), app/_components/book-form.tsx(신규), app/_components/book-row.tsx(신규), lib/books/progress.ts(신규, 순수 함수), app/calendar/page.tsx(관리 화면 진입 링크 추가), tests/books-progress.test.ts(신규), e2e/manage-books-page.spec.ts(신규), docs/decisions.md(4건 추가)
+- 브랜치: feature/ui-manage-books (main 기준)
+- 작업 내용: architecture.md §6 "/manage/books — 책 목록, 진도 현황" 구현. `/manage/routine`과 같은 create/edit 공용 폼 패턴을 재사용하되, **삭제 버튼은 두지 않음** — architecture.md §5 API 표에 애초에 `DELETE /api/books/:id`가 없어 이 화면도 그 범위를 그대로 따름(decisions.md)
+  - `lib/books/progress.ts`의 `latestProgressByBook`/`bookProgressLabel` — Book에 진도 필드를 따로 두지 않고 가장 최근 READING 과제의 progressEnd/progressUnit에서 매번 파생(§1.4의 progressStart 자동 채움과 동일 원칙, 같은 정렬 기준 재사용)
+  - `BookForm`(create/edit 공용): 제목, 언어(영어/한글), 총 챕터·페이지 수(선택, 비우면 null로 명시 해제)
+  - `BookRow`: 진도 요약("ch.12 / 20" 또는 "진행 기록 없음") 표시 + 수정(인라인 폼). 중복(title,language) 409 에러를 폼에 그대로 표시
+  - `/calendar`에 "책 관리 →" 진입 링크, `/manage/books`에 "← 달력으로" 복귀 링크(§6.4 하단 3탭에 없는 화면이라 BottomNav 대신, `/manage/routine`과 동일 패턴)
+- **실제 앱 구동 검증**: `npm run dev`로 서버 실행 후 Playwright로 책 추가→목록 반영, 중복 추가 에러 표시, 진도 있는 책의 "최신 진도/총량" 표시(ch.6→ch.12로 이어지는 두 과제 중 ch.12가 뜨는지 확인), 수정(제목 변경)까지 실제 클릭+네트워크 응답으로 확인. Book DELETE API가 없어 즉석 검증에서 만든 테스트 데이터는 prisma로 직접 정리(books-api.spec.ts와 동일 방식)
+- 검증 결과 (모두 실제 실행, 출력 확인됨):
+  - `npm run lint` — 출력 없음(무경고)
+  - `npx tsc --noEmit` — 에러 0
+  - `npm run test`(vitest) — 신규 `books-progress.test.ts` 7개 포함 총 98개 전부 통과
+  - `npm run build` — 성공, `/manage/books`가 Dynamic(ƒ)으로 정상 등록됨
+  - `npx playwright test`(e2e, 실제 dev 서버+SQLite) — 총 65개 전부 통과. 신규 5개(manage-books-page.spec.ts): 추가→목록 반영, 중복 409 에러 표시, 수정+취소, 최신 진도가 총량과 함께 표시(오래된 진도값 미노출 확인), 진입·복귀 링크. 최초 실행에서 진도 없음 문구 검증이 언어 텍스트와 같은 요소에 묶여 있어 exact match가 실패 → 결합된 문자열로 검증하도록 수정 후 재확인
+- 남은 이슈:
+  - **architecture.md §6의 화면 5개(오늘/달력/시간표/시간표 관리/책 관리)가 이번 PR로 전부 구현 완료.**
+  - 과제(Assignment) 생성 폼은 여전히 앱 전체에 없음(제목·날짜·유형·진도·연결 등 신규 입력) — 지금까지는 API로만 생성 가능. §6 화면이 모두 갖춰졌으니 다음 우선순위로 고려할 만함
+  - PWA manifest(§6.4)도 여전히 미포함
